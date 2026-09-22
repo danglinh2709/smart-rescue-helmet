@@ -379,14 +379,12 @@ Hoàn thành trong Milestone 7:
 - Phát hiện LOW_BATTERY.
 - Sinh Scenario Event.
 - Cập nhật Scenario hiện tại của thiết bị.
-
 ## Out of Scope
 Các chức năng sau không nằm trong Milestone 7:
 - WebSocket Realtime.
 - Dashboard nghiệp vụ.
 - Push Notification.
 - Hardware Integration.
-
 ## Milestone hiện tại
 Milestone 7 — Scenario Engine
 - Xây dựng Scenario Engine.
@@ -399,10 +397,11 @@ Milestone 7 — Scenario Engine
 - Phát hiện LOW_BATTERY.
 - Sinh Scenario Event.
 - Cập nhật Scenario hiện tại của thiết bị.
-
 Chưa có:
-
 - WebSocket Realtime.
 - Dashboard nghiệp vụ.
 - Push Notification.
 - Hardware Integration.
+
+####
+####
