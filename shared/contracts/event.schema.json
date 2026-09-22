@@ -1,0 +1,92 @@
+{
+  "$defs": {
+    "DataSource": {
+      "enum": [
+        "SIMULATOR",
+        "HARDWARE"
+      ],
+      "title": "DataSource",
+      "type": "string"
+    },
+    "EventSeverity": {
+      "enum": [
+        "INFO",
+        "WARNING",
+        "CRITICAL"
+      ],
+      "title": "EventSeverity",
+      "type": "string"
+    },
+    "EventType": {
+      "enum": [
+        "TEMPERATURE_HIGH",
+        "CO_HIGH",
+        "UNUSUAL_MOVEMENT",
+        "FALL_DETECTED",
+        "IMMOBILE",
+        "SOS_PRESSED",
+        "LOW_BATTERY",
+        "DEVICE_OFFLINE",
+        "MQTT_DISCONNECTED",
+        "MQTT_RECONNECTED"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Data",
+      "type": "object"
+    },
+    "device_id": {
+      "maxLength": 32,
+      "minLength": 3,
+      "pattern": "^[A-Z][A-Z0-9_-]{2,31}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "event_id": {
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "event_type": {
+      "$ref": "#/$defs/EventType"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/EventSeverity"
+    },
+    "source": {
+      "$ref": "#/$defs/DataSource"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "pattern": "(?:Z|[+-]\\d{2}:\\d{2})$",
+      "title": "Timestamp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "device_id",
+    "timestamp",
+    "source",
+    "event_id",
+    "event_type",
+    "severity",
+    "data"
+  ],
+  "title": "EventMessage",
+  "type": "object"
+}

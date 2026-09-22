@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "DataSource": {
+      "enum": [
+        "SIMULATOR",
+        "HARDWARE"
+      ],
+      "title": "DataSource",
+      "type": "string"
+    },
+    "DeviceStatus": {
+      "enum": [
+        "ONLINE",
+        "OFFLINE"
+      ],
+      "title": "DeviceStatus",
+      "type": "string"
+    },
+    "MovementState": {
+      "enum": [
+        "UNKNOWN",
+        "STATIONARY",
+        "WALKING",
+        "RUNNING",
+        "CRAWLING",
+        "UNUSUAL_MOVEMENT",
+        "FALL",
+        "IMMOBILE"
+      ],
+      "title": "MovementState",
+      "type": "string"
+    },
+    "RiskLevel": {
+      "enum": [
+        "NORMAL",
+        "WARNING",
+        "CRITICAL"
+      ],
+      "title": "RiskLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "device_id": {
+      "maxLength": 32,
+      "minLength": 3,
+      "pattern": "^[A-Z][A-Z0-9_-]{2,31}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "device_status": {
+      "$ref": "#/$defs/DeviceStatus"
+    },
+    "fall": {
+      "title": "Fall",
+      "type": "boolean"
+    },
+    "immobile": {
+      "title": "Immobile",
+      "type": "boolean"
+    },
+    "movement": {
+      "$ref": "#/$defs/MovementState"
+    },
+    "risk_level": {
+      "$ref": "#/$defs/RiskLevel"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sos": {
+      "title": "Sos",
+      "type": "boolean"
+    },
+    "source": {
+      "$ref": "#/$defs/DataSource"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "pattern": "(?:Z|[+-]\\d{2}:\\d{2})$",
+      "title": "Timestamp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "device_id",
+    "timestamp",
+    "source",
+    "device_status",
+    "risk_level",
+    "movement",
+    "fall",
+    "immobile",
+    "sos"
+  ],
+  "title": "DeviceStatusMessage",
+  "type": "object"
+}

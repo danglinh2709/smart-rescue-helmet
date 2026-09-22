@@ -1,0 +1,58 @@
+from enum import Enum
+
+
+class RiskLevel(str, Enum):
+    NORMAL = "NORMAL"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+class DeviceStatus(str, Enum):
+    ONLINE = "ONLINE"
+    OFFLINE = "OFFLINE"
+
+
+class ConnectionStatus(str, Enum):
+    CONNECTED = "CONNECTED"
+    DISCONNECTED = "DISCONNECTED"
+
+
+class MovementState(str, Enum):
+    UNKNOWN = "UNKNOWN"
+    STATIONARY = "STATIONARY"
+    WALKING = "WALKING"
+    RUNNING = "RUNNING"
+    CRAWLING = "CRAWLING"
+    UNUSUAL_MOVEMENT = "UNUSUAL_MOVEMENT"
+    FALL = "FALL"
+    IMMOBILE = "IMMOBILE"
+
+
+class EventType(str, Enum):
+    TEMPERATURE_HIGH = "TEMPERATURE_HIGH"
+    CO_HIGH = "CO_HIGH"
+    UNUSUAL_MOVEMENT = "UNUSUAL_MOVEMENT"
+    FALL_DETECTED = "FALL_DETECTED"
+    IMMOBILE = "IMMOBILE"
+    SOS_PRESSED = "SOS_PRESSED"
+    LOW_BATTERY = "LOW_BATTERY"
+    DEVICE_OFFLINE = "DEVICE_OFFLINE"
+    MQTT_DISCONNECTED = "MQTT_DISCONNECTED"
+    MQTT_RECONNECTED = "MQTT_RECONNECTED"
+
+
+class EventSeverity(str, Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    CRITICAL = "CRITICAL"
+
+
+class DataSource(str, Enum):
+    SIMULATOR = "SIMULATOR"
+    HARDWARE = "HARDWARE"
+
+
+class SensorStatus(str, Enum):
+    OK = "OK"
+    ERROR = "ERROR"
+    UNAVAILABLE = "UNAVAILABLE"
