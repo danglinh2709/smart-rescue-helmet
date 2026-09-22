@@ -24,7 +24,6 @@ class SOSScenario:
             "imu": self.imu.read(),
             "battery": self.battery.read(),
             "movement": "WALKING",
-            "risk_level": "CRITICAL",
             "fall": False,
             "immobile": False,
             "sos": True,

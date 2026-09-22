@@ -24,7 +24,6 @@ class ImmobileScenario:
             "imu": self.imu.read(),
             "battery": self.battery.read(),
             "movement": "IMMOBILE",
-            "risk_level": "WARNING",
             "fall": False,
             "immobile": True,
             "sos": False,

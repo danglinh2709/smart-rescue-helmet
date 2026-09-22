@@ -457,3 +457,527 @@ Các chức năng sau chưa được triển khai:
 - Chưa có Alert.
 - Chưa có WebSocket.
 - Chưa có Dashboard.
+
+---
+
+# Milestone 6 – Safety Engine & Event Detection
+
+Milestone 6 bổ sung **Rule-based Safety Engine** vào Backend. Mục tiêu của milestone là để Backend tự đánh giá mức độ rủi ro dựa trên dữ liệu Telemetry nhận được từ thiết bị, thay vì tin vào `risk_level` do Simulator gửi lên.
+
+Safety Engine phân tích các thông tin như nhiệt độ, nồng độ CO, trạng thái ngã, trạng thái bất động, nút SOS và mức pin để xác định:
+
+* `NORMAL`
+* `WARNING`
+* `CRITICAL`
+
+Khi phát hiện điều kiện nguy hiểm, Backend tự tạo Safety Event và lưu Event vào PostgreSQL.
+
+## Software Architecture
+
+```text
+Python Simulator
+       │
+       ▼
+MQTT Broker (Mosquitto)
+       │
+       ▼
+FastAPI MQTT Subscriber
+       │
+       ▼
+Pydantic Validation
+       │
+       ▼
+Safety Engine
+       │
+       ├──────────────► Risk Level
+       │
+       └──────────────► Safety Reasons
+                              │
+                              ▼
+                         Event Creation
+                              │
+                              ▼
+                       PostgreSQL
+```
+
+## Safety Rules
+
+Safety Engine sử dụng các ngưỡng hiện tại:
+
+| Điều kiện                    | Mức rủi ro |
+| ---------------------------- | ---------- |
+| Không có điều kiện nguy hiểm | `NORMAL`   |
+| Battery ≤ 20%                | `WARNING`  |
+| Temperature ≥ 50°C và < 60°C | `WARNING`  |
+| CO ≥ 50 và < 100             | `WARNING`  |
+| SOS được nhấn                | `CRITICAL` |
+| Phát hiện ngã                | `CRITICAL` |
+| Ngã + bất động               | `CRITICAL` |
+| Temperature ≥ 60°C           | `CRITICAL` |
+| CO ≥ 100                     | `CRITICAL` |
+
+Nếu có nhiều điều kiện cùng xảy ra, các `reasons` được thu thập cùng lúc. Chỉ cần xuất hiện một điều kiện thuộc nhóm Critical thì kết quả cuối cùng là `CRITICAL`.
+
+## Safety Reasons
+
+Safety Engine tạo các reason nội bộ để mô tả nguyên nhân:
+
+| Reason                 | Ý nghĩa                    |
+| ---------------------- | -------------------------- |
+| `SOS_PRESSED`          | Người dùng nhấn nút SOS    |
+| `FALL_DETECTED`        | Phát hiện ngã              |
+| `FALL_AND_IMMOBILE`    | Phát hiện ngã và bất động  |
+| `HIGH_TEMPERATURE`     | Nhiệt độ cao               |
+| `CRITICAL_TEMPERATURE` | Nhiệt độ ở mức nguy hiểm   |
+| `HIGH_CO`              | Nồng độ CO cao             |
+| `CRITICAL_CO`          | Nồng độ CO ở mức nguy hiểm |
+| `LOW_BATTERY`          | Pin thấp                   |
+
+## Data Flow
+
+```text
+Telemetry MQTT
+      │
+      ▼
+Pydantic Validation
+      │
+      ▼
+SafetyEngine.evaluate()
+      │
+      ├── RiskLevel
+      │
+      └── Reasons
+             │
+             ├── NORMAL
+             │     └── Không tạo Event
+             │
+             ├── WARNING
+             │     └── Tạo Event nếu có reason tương ứng
+             │
+             └── CRITICAL
+                   └── Tạo Critical Event
+```
+
+## Backend là nguồn sự thật về Risk
+
+Một nguyên tắc quan trọng được áp dụng từ Milestone 6:
+
+```text
+Simulator
+    │
+    │ telemetry conditions
+    ▼
+Backend Safety Engine
+    │
+    ▼
+Risk Level
+```
+
+Backend **không tin `risk_level` do Simulator quyết định**.
+
+Sau khi validate Telemetry, Backend đưa dữ liệu vào `SafetyEngine`. Kết quả từ Safety Engine được sử dụng để ghi `risk_level` vào Telemetry trước khi lưu Database.
+
+Điều này giúp tách biệt:
+
+* Simulator: tạo dữ liệu và điều kiện giả lập.
+* Safety Engine: quyết định mức độ rủi ro.
+* Event Service: tạo và lưu Safety Event.
+
+## Event Detection
+
+Safety Event được Backend tạo dựa trên kết quả của Safety Engine.
+
+Các EventType hiện tại:
+
+| Safety Reason          | Event Type         | Severity   |
+| ---------------------- | ------------------ | ---------- |
+| `SOS_PRESSED`          | `SOS_PRESSED`      | `CRITICAL` |
+| `FALL_DETECTED`        | `FALL_DETECTED`    | `CRITICAL` |
+| `FALL_AND_IMMOBILE`    | `FALL_DETECTED`    | `CRITICAL` |
+| `HIGH_CO`              | `CO_HIGH`          | `WARNING`  |
+| `CRITICAL_CO`          | `CO_HIGH`          | `CRITICAL` |
+| `HIGH_TEMPERATURE`     | `TEMPERATURE_HIGH` | `WARNING`  |
+| `CRITICAL_TEMPERATURE` | `TEMPERATURE_HIGH` | `CRITICAL` |
+| `LOW_BATTERY`          | `LOW_BATTERY`      | `WARNING`  |
+
+Nếu Risk Level là `NORMAL`, Backend không tạo Safety Event.
+
+## PostgreSQL
+
+Milestone 6 sử dụng PostgreSQL để lưu:
+
+* Telemetry sau khi được Safety Engine đánh giá.
+* Safety Event được Backend tạo.
+* Risk Level.
+* Safety Reasons trong Event data.
+
+Ví dụ một Telemetry sau khi xử lý:
+
+```json
+{
+  "device_id": "FF01",
+  "temperature": 75,
+  "co": 3.5,
+  "movement": "WALKING",
+  "fall": false,
+  "immobile": false,
+  "sos": false,
+  "risk_level": "CRITICAL",
+  "battery": 85
+}
+```
+
+Backend có thể tạo Event:
+
+```json
+{
+  "event_type": "TEMPERATURE_HIGH",
+  "severity": "CRITICAL"
+}
+```
+
+## Chức năng hoàn thành
+
+* Tích hợp Rule-based Safety Engine vào Backend.
+* Đánh giá Telemetry sau khi Pydantic validation thành công.
+* Backend tự quyết định `risk_level`.
+* Không tin `risk_level` từ Simulator.
+* Xác định Safety Reasons.
+* Tự động tạo Safety Event.
+* Xác định Event Type từ Safety Reason.
+* Xác định Event Severity từ Risk Level.
+* Lưu Telemetry đã đánh giá vào PostgreSQL.
+* Lưu Safety Event vào PostgreSQL.
+* Không tạo Event đối với trạng thái `NORMAL`.
+* Bỏ qua Event do Simulator gửi để tránh tạo Event trùng.
+
+## Không nằm trong Milestone 6
+
+Các chức năng sau chưa được triển khai:
+
+* AI / Machine Learning.
+* Camera / Computer Vision.
+* Alert Notification thực tế.
+* WebSocket Realtime.
+* Dashboard nghiệp vụ.
+* Hardware Integration.
+
+---
+
+# Milestone 7 – Scenario Engine & Safety Verification
+
+Milestone 7 bổ sung **Scenario Engine** cho Python Simulator nhằm tạo ra nhiều tình huống hoạt động khác nhau của Smart Rescue Helmet.
+
+Mục tiêu của Milestone 7 là kiểm chứng toàn bộ pipeline từ điều kiện của thiết bị đến kết quả đánh giá của Backend.
+
+Scenario chỉ có nhiệm vụ tạo dữ liệu cảm biến và trạng thái thiết bị. Scenario **không quyết định `risk_level` và không tạo Event**.
+
+## Software Architecture
+
+```text
+Scenario
+   │
+   ▼
+Sensor / State Data
+   │
+   ▼
+PayloadFactory
+   │
+   ▼
+MQTT
+   │
+   ▼
+Backend
+   │
+   ▼
+SafetyEngine
+   │
+   ├── Risk Level
+   │
+   └── Safety Reasons
+          │
+          ▼
+       Event
+          │
+          ▼
+     PostgreSQL
+```
+
+## Các Scenario
+
+Simulator hiện hỗ trợ các Scenario:
+
+| Scenario                  | Điều kiện mô phỏng               | Risk mong đợi |
+| ------------------------- | -------------------------------- | ------------- |
+| `NormalScenario`          | Hoạt động bình thường            | `NORMAL`      |
+| `TemperatureHighScenario` | Temperature = 75°C               | `CRITICAL`    |
+| `COHighScenario`          | CO = 150                         | `CRITICAL`    |
+| `FallScenario`            | `fall = true`                    | `CRITICAL`    |
+| `FallImmobileScenario`    | `fall = true`, `immobile = true` | `CRITICAL`    |
+| `SOSScenario`             | `sos = true`                     | `CRITICAL`    |
+| `LowBatteryScenario`      | Battery = 10%                    | `WARNING`     |
+
+## Nguyên tắc thiết kế Scenario
+
+Scenario chỉ tạo **điều kiện đầu vào**.
+
+Ví dụ:
+
+```python
+return {
+    "temperature": 75,
+    "co": self.co.read(),
+    "movement": "WALKING",
+    "fall": False,
+    "immobile": False,
+    "sos": False,
+}
+```
+
+Scenario không chứa:
+
+```python
+"risk_level": "CRITICAL"
+```
+
+Việc xác định Risk được thực hiện bởi Backend:
+
+```text
+Scenario
+   ↓
+temperature = 75
+   ↓
+MQTT
+   ↓
+SafetyEngine
+   ↓
+temperature >= 60
+   ↓
+CRITICAL_TEMPERATURE
+   ↓
+RiskLevel.CRITICAL
+```
+
+Thiết kế này đảm bảo Simulator không can thiệp vào logic nghiệp vụ của Backend.
+
+## Safety Verification
+
+Các Scenario được chạy lần lượt để kiểm tra kết quả thực tế của hệ thống.
+
+### NORMAL
+
+Điều kiện:
+
+```text
+temperature < 50
+co < 50
+battery > 20
+fall = false
+immobile = false
+sos = false
+```
+
+Kết quả:
+
+```text
+Risk Level = NORMAL
+Event = None
+```
+
+### HIGH TEMPERATURE
+
+Điều kiện:
+
+```text
+temperature = 75°C
+```
+
+Kết quả:
+
+```text
+Risk Level = CRITICAL
+Event Type = TEMPERATURE_HIGH
+Severity = CRITICAL
+```
+
+### HIGH CO
+
+Điều kiện:
+
+```text
+co = 150
+```
+
+Kết quả:
+
+```text
+Risk Level = CRITICAL
+Event Type = CO_HIGH
+Severity = CRITICAL
+```
+
+### FALL
+
+Điều kiện:
+
+```text
+fall = true
+immobile = false
+```
+
+Kết quả:
+
+```text
+Risk Level = CRITICAL
+Event Type = FALL_DETECTED
+Severity = CRITICAL
+```
+
+### FALL + IMMOBILE
+
+Điều kiện:
+
+```text
+fall = true
+immobile = true
+```
+
+Kết quả:
+
+```text
+Risk Level = CRITICAL
+Event Type = FALL_DETECTED
+Severity = CRITICAL
+```
+
+### SOS
+
+Điều kiện:
+
+```text
+sos = true
+```
+
+Kết quả:
+
+```text
+Risk Level = CRITICAL
+Event Type = SOS_PRESSED
+Severity = CRITICAL
+```
+
+### LOW BATTERY
+
+Điều kiện:
+
+```text
+battery = 10%
+```
+
+Kết quả:
+
+```text
+Risk Level = WARNING
+Event Type = LOW_BATTERY
+Severity = WARNING
+```
+
+## Verification Result
+
+Toàn bộ 7 Scenario đã được kiểm thử:
+
+| Scenario         | Risk Level | Event              | Verification |
+| ---------------- | ---------- | ------------------ | ------------ |
+| NORMAL           | `NORMAL`   | Không có           | ✅ PASS       |
+| HIGH TEMPERATURE | `CRITICAL` | `TEMPERATURE_HIGH` | ✅ PASS       |
+| HIGH CO          | `CRITICAL` | `CO_HIGH`          | ✅ PASS       |
+| FALL             | `CRITICAL` | `FALL_DETECTED`    | ✅ PASS       |
+| FALL + IMMOBILE  | `CRITICAL` | `FALL_DETECTED`    | ✅ PASS       |
+| SOS              | `CRITICAL` | `SOS_PRESSED`      | ✅ PASS       |
+| LOW BATTERY      | `WARNING`  | `LOW_BATTERY`      | ✅ PASS       |
+
+## Data Flow hoàn chỉnh
+
+```text
+                    Python Simulator
+                           │
+                           ▼
+                      Scenario
+                           │
+                           ▼
+                    PayloadFactory
+                           │
+                           ▼
+                    MQTT Publisher
+                           │
+                           ▼
+                   Mosquitto Broker
+                           │
+                           ▼
+                 FastAPI MQTT Subscriber
+                           │
+                           ▼
+                  Pydantic Validation
+                           │
+                           ▼
+                     Safety Engine
+                           │
+                    ┌──────┴──────┐
+                    ▼             ▼
+                Risk Level     Reasons
+                    │             │
+                    └──────┬──────┘
+                           ▼
+                    Event Creation
+                           │
+                           ▼
+                      PostgreSQL
+```
+
+## Chức năng hoàn thành
+
+* Xây dựng Scenario Engine cho Simulator.
+* Hỗ trợ Scenario NORMAL.
+* Hỗ trợ Scenario HIGH TEMPERATURE.
+* Hỗ trợ Scenario HIGH CO.
+* Hỗ trợ Scenario FALL.
+* Hỗ trợ Scenario FALL + IMMOBILE.
+* Hỗ trợ Scenario SOS.
+* Hỗ trợ Scenario LOW BATTERY.
+* Tách Scenario khỏi Safety Engine.
+* Scenario chỉ tạo điều kiện dữ liệu.
+* Backend Safety Engine là nguồn quyết định Risk Level.
+* Kiểm thử toàn bộ pipeline MQTT → Backend → Safety Engine → PostgreSQL.
+* Xác minh Risk Level của từng Scenario.
+* Xác minh Event Type và Severity của các tình huống nguy hiểm.
+* Xác minh NORMAL không tạo Safety Event.
+
+## Không nằm trong Milestone 7
+
+Các chức năng sau chưa được triển khai trong milestone này:
+
+* AI / Machine Learning.
+* Camera / Computer Vision.
+* Hardware ESP32-S3 thật.
+* Alert Notification thực tế.
+* WebSocket Realtime.
+* Dashboard nghiệp vụ hoàn chỉnh.
+* Location / GPS.
+* Navigation.
+* Phân tích dữ liệu nâng cao.
+
+---
+
+## Milestone hiện tại
+
+**Milestone 7 — Scenario Engine & Safety Verification**
+
+* Rule-based Safety Engine đã hoạt động.
+* Backend tự quyết định Risk Level.
+* Safety Event được tạo từ Safety Result.
+* Python Simulator hỗ trợ 7 Scenario.
+* Đã kiểm thử NORMAL, HIGH TEMPERATURE, HIGH CO, FALL, FALL + IMMOBILE, SOS và LOW BATTERY.
+* Các Scenario đều cho kết quả đúng theo Safety Rules.
+* PostgreSQL lưu Telemetry và Safety Event.
+* Simulator không quyết định Risk Level nghiệp vụ.
+* Simulator không tự tạo Safety Event.

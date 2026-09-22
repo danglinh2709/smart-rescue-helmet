@@ -24,7 +24,6 @@ class LowBatteryScenario:
             "imu": self.imu.read(),
             "battery": 10,
             "movement": "WALKING",
-            "risk_level": "WARNING",
             "fall": False,
             "immobile": False,
             "sos": False,

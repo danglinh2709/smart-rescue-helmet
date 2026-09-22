@@ -24,7 +24,6 @@ class FallScenario:
             "imu": self.imu.read(),
             "battery": self.battery.read(),
             "movement": "FALL",
-            "risk_level": "CRITICAL",
             "fall": True,
             "immobile": False,
             "sos": False,

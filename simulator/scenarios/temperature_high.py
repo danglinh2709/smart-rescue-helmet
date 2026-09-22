@@ -24,7 +24,6 @@ class TemperatureHighScenario:
             "imu": self.imu.read(),
             "battery": self.battery.read(),
             "movement": "WALKING",
-            "risk_level": "WARNING",
             "fall": False,
             "immobile": False,
             "sos": False,

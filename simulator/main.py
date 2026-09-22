@@ -10,13 +10,14 @@ from simulator.contracts.validator import ContractValidator
 from simulator.mqtt.publisher import MqttPublisher
 
 # ===== Chọn Scenario =====
-#from simulator.scenarios.normal import NormalScenario
+from simulator.scenarios.normal import NormalScenario
 from simulator.scenarios.fall import FallScenario
-# from simulator.scenarios.sos import SOSScenario
-# from simulator.scenarios.co_high import COHighScenario
-# from simulator.scenarios.temperature_high import TemperatureHighScenario
-# from simulator.scenarios.immobile import ImmobileScenario
-# from simulator.scenarios.low_battery import LowBatteryScenario
+from simulator.scenarios.fall_immobile import FallImmobileScenario
+from simulator.scenarios.sos import SOSScenario
+from simulator.scenarios.co_high import COHighScenario
+from simulator.scenarios.temperature_high import TemperatureHighScenario
+from simulator.scenarios.immobile import ImmobileScenario
+from simulator.scenarios.low_battery import LowBatteryScenario
 
 LOGGER = logging.getLogger(__name__)
 
@@ -146,13 +147,13 @@ def main() -> None:
     # Chọn Scenario tại đây
     # =====================================================
 
-    #scenario = NormalScenario()
-
-    scenario = FallScenario()
+    scenario = NormalScenario()
+    # scenario = FallScenario()
     # scenario = SOSScenario()
     # scenario = COHighScenario()
     # scenario = TemperatureHighScenario()
     # scenario = ImmobileScenario()
+    # scenario = FallImmobileScenario()
     # scenario = LowBatteryScenario()
 
     factory = PayloadFactory(

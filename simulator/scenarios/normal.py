@@ -24,7 +24,6 @@ class NormalScenario:
             "imu": self.imu.read(),
             "battery": self.battery.read(),
             "movement": "WALKING",
-            "risk_level": "NORMAL",
             "fall": False,
             "immobile": False,
             "sos": False,
