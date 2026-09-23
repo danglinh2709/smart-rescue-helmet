@@ -4,7 +4,7 @@ from simulator.sensors.imu import IMUSensorSimulator
 from simulator.sensors.temperature import TemperatureSensorSimulator
 
 
-class NormalScenario:
+class TemperatureHighScenario:
     def __init__(
         self,
         temperature: TemperatureSensorSimulator | None = None,
@@ -19,7 +19,7 @@ class NormalScenario:
 
     def read(self) -> dict[str, object]:
         return {
-            "temperature": self.temperature.read(),
+            "temperature": 75,
             "co": self.co.read(),
             "imu": self.imu.read(),
             "battery": self.battery.read(),

@@ -1,8 +1,6 @@
 from datetime import datetime, timezone
 from time import monotonic as system_monotonic
-from typing import Callable
-
-from simulator.scenarios.normal import NormalScenario
+from typing import Any, Callable
 
 
 class PayloadFactory:
@@ -10,7 +8,7 @@ class PayloadFactory:
         self,
         device_id: str,
         source: str,
-        scenario: NormalScenario,
+        scenario: Any,
         clock: Callable[[], datetime] | None = None,
         monotonic: Callable[[], float] | None = None,
     ) -> None:
@@ -31,6 +29,7 @@ class PayloadFactory:
 
     def create_telemetry(self) -> dict[str, object]:
         reading = self._scenario.read()
+
         return {
             **self._message_base(),
             "sensors": {
@@ -44,7 +43,9 @@ class PayloadFactory:
                 "immobile": reading["immobile"],
                 "sos": reading["sos"],
             },
-            "risk_level": reading["risk_level"],
+            # Giữ NORMAL để tương thích contract hiện tại.
+            # Backend M6 sẽ ghi đè bằng kết quả Safety Engine.
+            "risk_level": "NORMAL",
             "device": {
                 "battery": reading["battery"],
                 "wifi": "CONNECTED",
@@ -54,10 +55,13 @@ class PayloadFactory:
 
     def create_status(self) -> dict[str, object]:
         reading = self._scenario.read()
+
         return {
             **self._message_base(),
             "device_status": "ONLINE",
-            "risk_level": reading["risk_level"],
+            # Contract hiện tại vẫn yêu cầu risk_level.
+            # Không dùng giá trị này để quyết định Safety.
+            "risk_level": "NORMAL",
             "movement": reading["movement"],
             "fall": reading["fall"],
             "immobile": reading["immobile"],
@@ -65,10 +69,16 @@ class PayloadFactory:
         }
 
     def create_health(self) -> dict[str, object]:
-        uptime_seconds = max(0, int(self._monotonic() - self._started_at))
+        reading = self._scenario.read()
+
+        uptime_seconds = max(
+            0,
+            int(self._monotonic() - self._started_at),
+        )
+
         return {
             **self._message_base(),
-            "battery": self._scenario.battery.read(),
+            "battery": reading["battery"],
             "uptime_seconds": uptime_seconds,
             "wifi": "CONNECTED",
             "mqtt": "CONNECTED",
@@ -78,3 +88,12 @@ class PayloadFactory:
                 "imu": "OK",
             },
         }
+
+    def create_event(self) -> None:
+        """
+        Event không còn được tạo ở Simulator.
+
+        Backend Safety Engine là nguồn sự thật duy nhất
+        để quyết định Risk và Event.
+        """
+        return None

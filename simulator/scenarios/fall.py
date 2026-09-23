@@ -4,7 +4,7 @@ from simulator.sensors.imu import IMUSensorSimulator
 from simulator.sensors.temperature import TemperatureSensorSimulator
 
 
-class NormalScenario:
+class FallScenario:
     def __init__(
         self,
         temperature: TemperatureSensorSimulator | None = None,
@@ -23,8 +23,8 @@ class NormalScenario:
             "co": self.co.read(),
             "imu": self.imu.read(),
             "battery": self.battery.read(),
-            "movement": "WALKING",
-            "fall": False,
+            "movement": "FALL",
+            "fall": True,
             "immobile": False,
             "sos": False,
         }
