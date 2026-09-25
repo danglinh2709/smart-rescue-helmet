@@ -4,5 +4,14 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/BuildingFire.unity
+    guid: 2c9f0a5bd63c472ab1f4d8e90c5a41e1
+  - enabled: 1
+    path: Assets/Scenes/ConfinedSpaceCO.unity
+    guid: 61de8b0f4c794fc5bdb2be093db55b9a
+  - enabled: 1
+    path: Assets/Scenes/Bootstrap.unity
+    guid: cbf4277c4aaeee64fbf4a34ce9cfc171
   m_configObjects: {}

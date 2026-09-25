@@ -7,6 +7,10 @@ namespace SmartRescueHelmet.Unity.Scenarios
     public sealed class ScenarioController : MonoBehaviour
     {
         public HelmetDeviceController Helmet;
+        public Vector3 NormalSpawn;
+        public Vector3 TemperatureTarget;
+        public Vector3 CoTarget;
+        public Vector3 FallTarget;
         public ScenarioKind ActiveScenario { get; private set; } = ScenarioKind.Normal;
         public void Activate(ScenarioKind scenario)
         {
@@ -15,8 +19,16 @@ namespace SmartRescueHelmet.Unity.Scenarios
             Helmet.Current.Fall = false; Helmet.Current.Sos = false; Helmet.Current.Battery = 85f;
             switch (scenario)
             {
-                case ScenarioKind.Normal: if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(true); break;
-                case ScenarioKind.Fall: Helmet.ReportFall(); break;
+                case ScenarioKind.Normal:
+                    Helmet.transform.position = NormalSpawn;
+                    if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(true);
+                    break;
+                case ScenarioKind.TemperatureHigh: Helmet.transform.position = TemperatureTarget; break;
+                case ScenarioKind.CoHigh: Helmet.transform.position = CoTarget; break;
+                case ScenarioKind.Fall:
+                    Helmet.transform.position = FallTarget;
+                    Helmet.ReportFall();
+                    break;
                 case ScenarioKind.Sos: Helmet.SetSos(true); break;
                 case ScenarioKind.LowBattery: Helmet.Current.Battery = 15f; break;
                 case ScenarioKind.ConnectionLoss: if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(false); break;
@@ -31,6 +43,8 @@ namespace SmartRescueHelmet.Unity.Scenarios
             if (Input.GetKeyDown(KeyCode.Alpha4)) Activate(ScenarioKind.LowBattery);
             if (Input.GetKeyDown(KeyCode.Alpha5)) Activate(ScenarioKind.ConnectionLoss);
             if (Input.GetKeyDown(KeyCode.Alpha6)) Activate(ScenarioKind.Reconnect);
+            if (Input.GetKeyDown(KeyCode.Alpha7)) Activate(ScenarioKind.TemperatureHigh);
+            if (Input.GetKeyDown(KeyCode.Alpha8)) Activate(ScenarioKind.CoHigh);
         }
     }
 }

@@ -30,12 +30,17 @@ namespace SmartRescueHelmet.Unity.Presentation
             {
                 GUI.Label(new Rect(32, 244, 270, 24), "BACKEND WS: " + (BackendRealtime.IsConnected ? "CONNECTED" : "RECONNECTING"));
                 GUI.Label(new Rect(32, 268, 270, 24), "WS MESSAGE: " + BackendRealtime.LastMessageType);
+                var backend = BackendRealtime.State;
+                GUI.Label(new Rect(Screen.width - 260, 48, 240, 24), "BACKEND RISK: " + backend.RiskLevel);
+                GUI.Label(new Rect(Screen.width - 260, 72, 240, 24), "BACKEND TEMP: " + (backend.Temperature.HasValue ? backend.Temperature.Value.ToString("F1") + " C" : "--"));
+                GUI.Label(new Rect(Screen.width - 260, 96, 240, 24), "BACKEND CO: " + (backend.Co.HasValue ? backend.Co.Value.ToString("F1") + " ppm" : "--"));
+                GUI.Label(new Rect(Screen.width - 260, 120, 240, 24), "BACKEND BATTERY: " + (backend.Battery.HasValue ? backend.Battery.Value.ToString("F0") + "%" : "--"));
             }
             if (Device.Actuators != null)
                 GUI.Label(new Rect(32, 172, 250, 24), "ACTUATOR: " + Device.Actuators.Led + " | B:" + (Device.Actuators.BuzzerOn ? "ON" : "OFF") + " V:" + (Device.Actuators.VibrationOn ? "ON" : "OFF"));
             GUI.Box(new Rect(18, Screen.height - 90, 410, 72), "CONTROLS");
             GUI.Label(new Rect(32, Screen.height - 64, 380, 22), "WASD move | Q/E or arrows turn | C camera");
-            GUI.Label(new Rect(32, Screen.height - 40, 500, 22), "1 normal | 2 fall | 3 SOS | 4 battery | 5 loss | 6 reconnect");
+            GUI.Label(new Rect(32, Screen.height - 40, 700, 22), "1 normal | 2 fall | 3 SOS | 4 battery | 5 loss | 6 reconnect | 7 heat | 8 CO | F1 fire | F2 CO scene");
         }
     }
 }

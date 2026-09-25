@@ -26,8 +26,8 @@ namespace SmartRescueHelmet.Unity.Devices
             Safety = LocalSafetyEvaluator.Evaluate(Current);
             if (Actuators != null) Actuators.Apply(Safety);
             if (Publisher == null || !Publisher.IsConnected) return;
-            if (Time.time >= _telemetryAt) { _telemetryAt = Time.time + 1f; Publish("telemetry", HelmetMessages.CreateNormalTelemetry(DeviceId), 0); }
-            if (Time.time >= _statusAt) { _statusAt = Time.time + 2f; Publish("status", HelmetMessages.CreateStatus(DeviceId, Safety.RiskLevel), 1); }
+            if (Time.time >= _telemetryAt) { _telemetryAt = Time.time + 1f; Publish("telemetry", HelmetMessages.CreateTelemetry(DeviceId, Current, Safety), 0); }
+            if (Time.time >= _statusAt) { _statusAt = Time.time + 2f; Publish("status", HelmetMessages.CreateStatus(DeviceId, Current, Safety), 1); }
             if (Time.time >= _healthAt) { _healthAt = Time.time + 5f; Publish("health", HelmetMessages.CreateHealth(DeviceId, Current.Battery), 1); }
         }
         private void Publish(string kind, string json, int qos)

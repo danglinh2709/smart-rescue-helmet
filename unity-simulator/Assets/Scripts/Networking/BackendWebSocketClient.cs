@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using SmartRescueHelmet.Unity.Presentation;
 using UnityEngine;
 
 namespace SmartRescueHelmet.Unity.Networking
@@ -24,6 +25,7 @@ namespace SmartRescueHelmet.Unity.Networking
         public bool IsConnected { get; private set; }
         public string LastMessageType { get; private set; } = "NONE";
         public string LastDeviceId { get; private set; } = string.Empty;
+        public CommandCenterState State { get; } = new CommandCenterState();
         public event Action<RealtimeEnvelope> EnvelopeReceived;
 
         private void Start()
@@ -38,6 +40,7 @@ namespace SmartRescueHelmet.Unity.Networking
             {
                 LastMessageType = envelope.MessageType;
                 LastDeviceId = envelope.DeviceId;
+                State.Apply(envelope);
                 EnvelopeReceived?.Invoke(envelope);
             }
         }

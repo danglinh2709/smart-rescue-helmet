@@ -5,6 +5,7 @@ using SmartRescueHelmet.Unity.Player;
 using SmartRescueHelmet.Unity.Presentation;
 using SmartRescueHelmet.Unity.Scenarios;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace SmartRescueHelmet.Unity.Bootstrap
 {
@@ -13,13 +14,18 @@ namespace SmartRescueHelmet.Unity.Bootstrap
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateAtRuntime()
         {
-            if (FindFirstObjectByType<RuntimeBootstrap>() == null)
+            if (FindAnyObjectByType<RuntimeBootstrap>() == null)
                 new GameObject("RuntimeBootstrap").AddComponent<RuntimeBootstrap>();
         }
         private void Awake()
         {
             Debug.Log("[SRH] RuntimeBootstrap Awake");
-            CreateBuildingFireEnvironment();
+            gameObject.AddComponent<RescueSceneNavigator>();
+            var environment = EnvironmentSceneSelector.FromSceneName(SceneManager.GetActiveScene().name);
+            if (environment == RescueEnvironment.BuildingFire)
+                CreateBuildingFireEnvironment();
+            else
+                CreateConfinedSpaceEnvironment();
             var helmet = new GameObject("RescuerHelmet");
             helmet.transform.position = new Vector3(0, 1, 0);
             var shell = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -32,34 +38,69 @@ namespace SmartRescueHelmet.Unity.Bootstrap
             var led = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             led.name = "HelmetSafetyLED"; led.transform.SetParent(helmet.transform); led.transform.localPosition = new Vector3(0, .35f, .25f); led.transform.localScale = Vector3.one * .12f;
             actuator.LedRenderer = led.GetComponent<Renderer>();
+            var buzzer = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            buzzer.name = "HelmetBuzzerIndicator"; buzzer.transform.SetParent(helmet.transform); buzzer.transform.localPosition = new Vector3(-.18f, .36f, .25f); buzzer.transform.localScale = Vector3.one * .1f;
+            actuator.BuzzerIndicator = buzzer.GetComponent<Renderer>();
+            var vibration = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            vibration.name = "HelmetVibrationIndicator"; vibration.transform.SetParent(helmet.transform); vibration.transform.localPosition = new Vector3(.18f, .36f, .25f); vibration.transform.localScale = Vector3.one * .1f;
+            actuator.VibrationIndicator = vibration.GetComponent<Renderer>();
             var publisher = helmet.AddComponent<MqttDevicePublisher>();
             var backendRealtime = helmet.AddComponent<BackendWebSocketClient>();
             var device = helmet.AddComponent<HelmetDeviceController>();
             device.Actuators = actuator; device.Publisher = publisher;
-            var scenarios = helmet.AddComponent<ScenarioController>(); scenarios.Helmet = device;
+            var scenarios = helmet.AddComponent<ScenarioController>(); scenarios.Helmet = device; scenarios.NormalSpawn = helmet.transform.position;
             var hud = helmet.AddComponent<VisorHudController>(); hud.Device = device; hud.Scenarios = scenarios; hud.Publisher = publisher; hud.BackendRealtime = backendRealtime;
-            var hazard = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            hazard.name = "TemperatureHazard"; hazard.transform.position = new Vector3(4, 0, 0);
-            hazard.transform.localScale = new Vector3(3, 3, 3);
-            var volume = hazard.AddComponent<HazardVolume>(); volume.TemperatureDelta = 35f;
-            var coZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            coZone.name = "ConfinedSpaceCOZone"; coZone.transform.position = new Vector3(-4, 1, 0); coZone.transform.localScale = new Vector3(3, 2, 3);
-            coZone.GetComponent<Renderer>().material.color = new Color(.55f, .7f, .05f, .35f);
-            var coVolume = coZone.AddComponent<HazardVolume>(); coVolume.CoPpm = 110f;
-            var ventilation = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ventilation.name = "VentilationZone"; ventilation.transform.position = new Vector3(-4, 1, 0); ventilation.transform.localScale = new Vector3(1.2f, 1, 1.2f);
-            ventilation.GetComponent<Renderer>().material.color = new Color(.1f, .7f, 1f);
-            var ventilationZone = ventilation.AddComponent<VentilationZone>(); ventilationZone.CoReduction = .8f;
-            device.Hazards = new[] { volume, coVolume };
-            device.VentilationZones = new[] { ventilationZone };
+            ConfigureEnvironmentHazards(environment, device, scenarios);
             var fallZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
             fallZone.name = "FallZone"; fallZone.transform.position = new Vector3(0, .05f, 5); fallZone.transform.localScale = new Vector3(2, .1f, 2);
             fallZone.GetComponent<Renderer>().material.color = Color.red; fallZone.GetComponent<Collider>().isTrigger = true;
             fallZone.AddComponent<FallZone>().Device = device;
+            scenarios.FallTarget = fallZone.transform.position + Vector3.up;
             helmet.AddComponent<CharacterController>();
             helmet.AddComponent<RescuerController>();
             var cameras = CreateCameras(helmet.transform);
             hud.Cameras = cameras;
+        }
+
+        private static void ConfigureEnvironmentHazards(
+            RescueEnvironment environment,
+            HelmetDeviceController device,
+            ScenarioController scenarios)
+        {
+            if (environment == RescueEnvironment.BuildingFire)
+            {
+                var heat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                heat.name = "TemperatureHazard";
+                heat.transform.position = new Vector3(4, 0, 0);
+                heat.transform.localScale = new Vector3(3, 3, 3);
+                var heatVolume = heat.AddComponent<HazardVolume>();
+                heatVolume.TemperatureDelta = 35f;
+                scenarios.TemperatureTarget = heat.transform.position;
+                scenarios.CoTarget = scenarios.NormalSpawn;
+                device.Hazards = new[] { heatVolume };
+                device.VentilationZones = System.Array.Empty<VentilationZone>();
+                return;
+            }
+
+            var coZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            coZone.name = "ConfinedSpaceCOZone";
+            coZone.transform.position = new Vector3(0, 1, 3);
+            coZone.transform.localScale = new Vector3(3, 2, 3);
+            coZone.GetComponent<Renderer>().material.color = new Color(.55f, .7f, .05f, .35f);
+            var coVolume = coZone.AddComponent<HazardVolume>();
+            coVolume.CoPpm = 110f;
+            scenarios.CoTarget = coZone.transform.position;
+            scenarios.TemperatureTarget = scenarios.NormalSpawn;
+
+            var ventilation = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ventilation.name = "VentilationZone";
+            ventilation.transform.position = new Vector3(0, 1, -3);
+            ventilation.transform.localScale = new Vector3(1.2f, 1, 1.2f);
+            ventilation.GetComponent<Renderer>().material.color = new Color(.1f, .7f, 1f);
+            var ventilationZone = ventilation.AddComponent<VentilationZone>();
+            ventilationZone.CoReduction = .8f;
+            device.Hazards = new[] { coVolume };
+            device.VentilationZones = new[] { ventilationZone };
         }
 
         private static void CreateBuildingFireEnvironment()
@@ -87,6 +128,29 @@ namespace SmartRescueHelmet.Unity.Bootstrap
             CreateObstacle(new Vector3(1.5f, .5f, 2));
             CreateObstacle(new Vector3(-2f, .5f, -3));
             RenderSettings.fog = true; RenderSettings.fogColor = new Color(.18f, .18f, .18f); RenderSettings.fogDensity = .025f;
+            new GameObject("Directional Light").AddComponent<Light>().type = LightType.Directional;
+        }
+
+        private static void CreateConfinedSpaceEnvironment()
+        {
+            var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            floor.name = "ConfinedSpaceFloor";
+            floor.transform.localScale = new Vector3(2f, 1f, 2f);
+            CreateWall(new Vector3(0, 1.5f, 6), new Vector3(8, 3, .3f));
+            CreateWall(new Vector3(0, 1.5f, -6), new Vector3(8, 3, .3f));
+            CreateWall(new Vector3(-4, 1.5f, 0), new Vector3(.3f, 3, 12));
+            CreateWall(new Vector3(4, 1.5f, 0), new Vector3(.3f, 3, 12));
+            CreateObstacle(new Vector3(-1.2f, .5f, 0));
+            CreateObstacle(new Vector3(1.2f, .5f, 1.5f));
+            var warningLight = new GameObject("ConfinedSpaceWarningLight").AddComponent<Light>();
+            warningLight.type = LightType.Point;
+            warningLight.color = new Color(.65f, .8f, .1f);
+            warningLight.range = 7f;
+            warningLight.intensity = 3f;
+            warningLight.transform.position = new Vector3(0, 2f, 3f);
+            RenderSettings.fog = true;
+            RenderSettings.fogColor = new Color(.18f, .24f, .12f);
+            RenderSettings.fogDensity = .055f;
             new GameObject("Directional Light").AddComponent<Light>().type = LightType.Directional;
         }
 
