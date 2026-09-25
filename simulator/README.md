@@ -10,3 +10,4 @@ Simulator đóng vai trò **virtual ESP32-S3** trong giai đoạn software-first
 Telemetry dùng QoS 0 vì có tần suất cao và payload sau sẽ thay thế payload trước. Status và health dùng QoS 1 vì được publish thưa hơn và có giá trị theo dõi trạng thái thiết bị.
 
 Simulator không publish event trong NORMAL scenario. Backend chưa subscribe MQTT trong milestone này.
+

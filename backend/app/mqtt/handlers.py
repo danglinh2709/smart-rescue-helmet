@@ -15,11 +15,13 @@ from app.schemas.event import EventMessage
 from app.services.device_service import ensure_device_exists
 from app.services.telemetry_service import save_telemetry
 from app.services.status_service import save_status
-from app.services.device_state import update_device
+from app.services.device_state import touch_device, update_device
 from app.services.health_service import save_health
 from app.services.event_service import save_event
 
 from app.safety.engine import SafetyEngine
+from app.websocket.service import publish_device_state, publish_realtime_message
+from app.reliability.offline_monitor import handle_device_recovery
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,30 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 safety_engine = SafetyEngine()
+
+
+async def _touch_valid_device(device_id: str) -> None:
+    if touch_device(device_id):
+        await handle_device_recovery(device_id)
+
+
+def _matches_topic_device(device_id: str, payload_device_id: str) -> bool:
+    if device_id == payload_device_id:
+        return True
+    logger.warning(
+        "Ignoring MQTT topic/payload device mismatch topic_device=%s payload_device=%s",
+        device_id,
+        payload_device_id,
+    )
+    return False
+
+
+def _actuator_state(risk_level: RiskLevel) -> dict[str, object]:
+    if risk_level == RiskLevel.CRITICAL:
+        return {"led": "RED", "buzzer": True, "vibration": True}
+    if risk_level == RiskLevel.WARNING:
+        return {"led": "YELLOW", "buzzer": False, "vibration": False}
+    return {"led": "GREEN", "buzzer": False, "vibration": False}
 
 
 def create_event_from_safety_result(
@@ -128,7 +154,7 @@ def create_event_from_safety_result(
     )
 
 
-def handle_message(topic: str, payload: str) -> None:
+async def handle_message(topic: str, payload: str) -> None:
     """
     Xử lý message nhận từ MQTT Broker.
 
@@ -203,6 +229,9 @@ def handle_message(topic: str, payload: str) -> None:
             # ------------------------------------------------
 
             obj = TelemetryMessage.model_validate(data)
+            if not _matches_topic_device(device_id, obj.device_id):
+                return
+            await _touch_valid_device(device_id)
 
             # ------------------------------------------------
             # M6 - SAFETY ENGINE
@@ -224,7 +253,7 @@ def handle_message(topic: str, payload: str) -> None:
             # Không tin risk_level từ Simulator.
             # ------------------------------------------------
 
-            telemetry_data = obj.model_dump()
+            telemetry_data = obj.model_dump(mode="json")
 
             telemetry_data["risk_level"] = (
                 safety_result.risk_level
@@ -245,6 +274,8 @@ def handle_message(topic: str, payload: str) -> None:
             # ------------------------------------------------
 
             db = SessionLocal()
+            event = None
+            event_saved = False
 
             try:
 
@@ -283,6 +314,7 @@ def handle_message(topic: str, payload: str) -> None:
                         db,
                         event.model_dump(),
                     )
+                    event_saved = True
 
                     logger.info(
                         "Safety event created "
@@ -306,6 +338,30 @@ def handle_message(topic: str, payload: str) -> None:
                 "Telemetry received [%s]",
                 device_id,
             )
+            update_device(
+                device_id,
+                "actuators",
+                _actuator_state(safety_result.risk_level),
+            )
+
+            await publish_realtime_message(
+                "telemetry",
+                device_id=device_id,
+                timestamp=telemetry_data["timestamp"],
+                data=telemetry_data,
+            )
+
+            if event is not None and event_saved:
+                event_data = event.model_dump(mode="json")
+                update_device(device_id, "event", event_data)
+                await publish_realtime_message(
+                    "event",
+                    device_id=device_id,
+                    timestamp=event_data["timestamp"],
+                    data=event_data,
+                )
+
+            await publish_device_state(device_id)
 
         # ====================================================
         # STATUS
@@ -314,12 +370,12 @@ def handle_message(topic: str, payload: str) -> None:
         elif message_type == "status":
 
             obj = DeviceStatusMessage.model_validate(data)
+            if not _matches_topic_device(device_id, obj.device_id):
+                return
+            await _touch_valid_device(device_id)
 
-            update_device(
-                device_id,
-                "status",
-                obj.model_dump(),
-            )
+            status_data = obj.model_dump(mode="json")
+            update_device(device_id, "status", status_data)
 
             db = SessionLocal()
 
@@ -332,7 +388,7 @@ def handle_message(topic: str, payload: str) -> None:
 
                 save_status(
                     db,
-                    obj.model_dump(),
+                    status_data,
                 )
 
             except Exception:
@@ -350,6 +406,14 @@ def handle_message(topic: str, payload: str) -> None:
                 device_id,
             )
 
+            await publish_realtime_message(
+                "status",
+                device_id=device_id,
+                timestamp=status_data["timestamp"],
+                data=status_data,
+            )
+            await publish_device_state(device_id)
+
         # ====================================================
         # HEALTH
         # ====================================================
@@ -357,12 +421,12 @@ def handle_message(topic: str, payload: str) -> None:
         elif message_type == "health":
 
             obj = DeviceHealthMessage.model_validate(data)
+            if not _matches_topic_device(device_id, obj.device_id):
+                return
+            await _touch_valid_device(device_id)
 
-            update_device(
-                device_id,
-                "health",
-                obj.model_dump(),
-            )
+            health_data = obj.model_dump(mode="json")
+            update_device(device_id, "health", health_data)
 
             db = SessionLocal()
 
@@ -375,7 +439,7 @@ def handle_message(topic: str, payload: str) -> None:
 
                 save_health(
                     db,
-                    obj.model_dump(),
+                    health_data,
                 )
 
             except Exception:
@@ -392,6 +456,14 @@ def handle_message(topic: str, payload: str) -> None:
                 "Health received [%s]",
                 device_id,
             )
+
+            await publish_realtime_message(
+                "health",
+                device_id=device_id,
+                timestamp=health_data["timestamp"],
+                data=health_data,
+            )
+            await publish_device_state(device_id)
 
         # ====================================================
         # EVENT

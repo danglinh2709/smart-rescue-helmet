@@ -80,7 +80,7 @@ def test_normal_scenario_never_sets_dangerous_state() -> None:
     sample = scenario_class().read()
 
     assert sample["movement"] == "WALKING"
-    assert sample["risk_level"] == "NORMAL"
+    assert "risk_level" not in sample
     assert sample["fall"] is False
     assert sample["immobile"] is False
     assert sample["sos"] is False

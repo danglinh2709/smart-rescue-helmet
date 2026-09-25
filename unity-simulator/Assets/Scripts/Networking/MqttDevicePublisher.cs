@@ -13,6 +13,7 @@ namespace SmartRescueHelmet.Unity.Networking
         [SerializeField] private string host = "localhost";
         [SerializeField] private int port = 1883;
         public bool IsConnected { get; private set; }
+        public bool PublishEnabled => publishEnabled;
         public event Action<string> ConnectionStateChanged;
         private IMqttClient _client;
         private float _nextRetry;

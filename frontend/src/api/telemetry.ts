@@ -1,0 +1,1 @@
+import { apiGet } from './client'; import type { Telemetry } from '../types/dashboard'; export const getTelemetryHistory = (deviceId: string) => apiGet<Telemetry[]>(`/api/v1/telemetry/${encodeURIComponent(deviceId)}`)

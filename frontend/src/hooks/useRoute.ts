@@ -1,0 +1,2 @@
+import { useEffect, useState } from 'react'
+export function useRoute() { const [path, setPath] = useState(() => window.location.pathname); useEffect(() => { const listener = () => setPath(window.location.pathname); window.addEventListener('popstate', listener); return () => window.removeEventListener('popstate', listener) }, []); return { path, navigate: (target: string) => { window.history.pushState({}, '', target); setPath(target) } } }

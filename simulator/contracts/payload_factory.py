@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 from time import monotonic as system_monotonic
 from typing import Any, Callable
 
+from simulator.actuators.controller import ActuatorController, ActuatorState
+from simulator.safety.local_engine import LocalSafetyEngine
+
 
 class PayloadFactory:
     def __init__(
@@ -11,6 +14,8 @@ class PayloadFactory:
         scenario: Any,
         clock: Callable[[], datetime] | None = None,
         monotonic: Callable[[], float] | None = None,
+        local_safety: LocalSafetyEngine | None = None,
+        actuators: ActuatorController | None = None,
     ) -> None:
         self._device_id = device_id
         self._source = source
@@ -18,6 +23,25 @@ class PayloadFactory:
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._monotonic = monotonic or system_monotonic
         self._started_at = self._monotonic()
+        self._local_safety = local_safety or LocalSafetyEngine()
+        self._actuators = actuators or ActuatorController()
+
+    @property
+    def actuator_state(self) -> ActuatorState:
+        return self._actuators.state
+
+    def _read(self) -> dict[str, object]:
+        reading = self._scenario.read()
+        result = self._local_safety.evaluate(
+            temperature=reading["temperature"],
+            co=reading["co"],
+            battery=reading["battery"],
+            fall=reading["fall"],
+            immobile=reading["immobile"],
+            sos=reading["sos"],
+        )
+        self._actuators.apply(result)
+        return reading
 
     def _message_base(self) -> dict[str, object]:
         return {
@@ -28,7 +52,7 @@ class PayloadFactory:
         }
 
     def create_telemetry(self) -> dict[str, object]:
-        reading = self._scenario.read()
+        reading = self._read()
 
         return {
             **self._message_base(),
@@ -54,7 +78,7 @@ class PayloadFactory:
         }
 
     def create_status(self) -> dict[str, object]:
-        reading = self._scenario.read()
+        reading = self._read()
 
         return {
             **self._message_base(),
@@ -69,7 +93,7 @@ class PayloadFactory:
         }
 
     def create_health(self) -> dict[str, object]:
-        reading = self._scenario.read()
+        reading = self._read()
 
         uptime_seconds = max(
             0,

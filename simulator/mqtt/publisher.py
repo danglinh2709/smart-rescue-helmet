@@ -110,16 +110,32 @@ class MqttPublisher:
             self._client.loop_stop()
             self._connected = False
 
+    def _ensure_connected(self) -> bool:
+        if self._connected:
+            return True
+        LOGGER.info("mqtt reconnecting host=%s port=%s", self._host, self._port)
+        self._connected_event.clear()
+        try:
+            result = self._client.reconnect()
+        except Exception as exc:
+            LOGGER.warning("mqtt reconnect failed error=%s", exc)
+            return False
+        if result != mqtt.MQTT_ERR_SUCCESS:
+            LOGGER.warning("mqtt reconnect failed code=%s", result)
+            return False
+        if not self._connected_event.wait(self._connect_timeout):
+            LOGGER.warning("mqtt reconnect timed out")
+            return False
+        return self._connected
+
     def _publish(
         self,
         message_type: str,
         payload: dict[str, Any],
         qos: int,
-    ) -> None:
-        if not self._connected:
-            raise RuntimeError(
-                "MQTT publisher is not connected"
-            )
+    ) -> bool:
+        if not self._ensure_connected():
+            return False
 
         validator = getattr(
             self._validator,
@@ -152,6 +168,7 @@ class MqttPublisher:
             )
 
         publish_result.wait_for_publish(timeout=5.0)
+        return True
 
     def publish_telemetry(
         self,

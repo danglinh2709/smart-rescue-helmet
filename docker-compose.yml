@@ -45,6 +45,8 @@ services:
       MQTT_PORT: ${MQTT_PORT}
       BACKEND_HOST: ${BACKEND_HOST}
       BACKEND_PORT: ${BACKEND_PORT}
+      DEVICE_OFFLINE_TIMEOUT_SECONDS: ${DEVICE_OFFLINE_TIMEOUT_SECONDS:-10}
+      DEVICE_OFFLINE_CHECK_INTERVAL_SECONDS: ${DEVICE_OFFLINE_CHECK_INTERVAL_SECONDS:-2}
     ports:
       - "8000:8000"
     depends_on:
@@ -58,6 +60,7 @@ services:
       context: ./frontend
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/ws}
     ports:
       - "5173:5173"
     depends_on:
@@ -76,6 +79,7 @@ services:
       SIMULATOR_STATUS_INTERVAL: ${SIMULATOR_STATUS_INTERVAL}
       SIMULATOR_HEALTH_INTERVAL: ${SIMULATOR_HEALTH_INTERVAL}
       SIMULATOR_SOURCE: SIMULATOR
+      SIMULATOR_MQTT_PUBLISH_ENABLED: ${SIMULATOR_MQTT_PUBLISH_ENABLED:-true}
     depends_on:
       mosquitto:
         condition: service_healthy

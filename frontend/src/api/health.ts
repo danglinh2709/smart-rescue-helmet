@@ -1,0 +1,1 @@
+import { apiGet } from './client'; import type { DeviceHealth } from '../types/dashboard'; export const getHealthHistory = (deviceId: string) => apiGet<DeviceHealth[]>(`/api/v1/health/history/${encodeURIComponent(deviceId)}`)

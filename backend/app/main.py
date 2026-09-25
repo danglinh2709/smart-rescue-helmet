@@ -10,6 +10,8 @@ from app.api.health import router as health_router
 from app.database.init_db import init_database
 from app.mqtt.subscriber import start_subscriber
 from app.services.device_state import devices
+from app.websocket.router import router as websocket_router
+from app.reliability.offline_monitor import run_offline_monitor
 
 
 @asynccontextmanager
@@ -19,14 +21,21 @@ async def lifespan(app: FastAPI):
 
     # Khởi động MQTT Subscriber
     mqtt_task = asyncio.create_task(start_subscriber())
+    offline_task = asyncio.create_task(run_offline_monitor())
 
     yield
 
     # Dừng MQTT Subscriber
     mqtt_task.cancel()
+    offline_task.cancel()
 
     try:
         await mqtt_task
+    except asyncio.CancelledError:
+        pass
+
+    try:
+        await offline_task
     except asyncio.CancelledError:
         pass
 
@@ -41,6 +50,7 @@ app = FastAPI(
 app.include_router(telemetry_router)
 app.include_router(event_router)
 app.include_router(health_router)
+app.include_router(websocket_router)
 
 
 # ==========================

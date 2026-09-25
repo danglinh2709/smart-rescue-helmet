@@ -1,0 +1,1 @@
+import { apiGet } from './client'; import type { DeviceEvent } from '../types/dashboard'; export const getEvents = (deviceId?: string) => apiGet<DeviceEvent[]>(deviceId ? `/api/v1/events/${encodeURIComponent(deviceId)}` : '/api/v1/events')

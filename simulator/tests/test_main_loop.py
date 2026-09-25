@@ -14,6 +14,9 @@ class FakeFactory:
     def create_health(self) -> dict[str, str]:
         return {"kind": "health"}
 
+    def create_event(self) -> None:
+        return None
+
 
 class FakePublisher:
     def __init__(self) -> None:
@@ -26,6 +29,9 @@ class FakePublisher:
         self.published.append(payload["kind"])
 
     def publish_health(self, payload: dict[str, str]) -> None:
+        self.published.append(payload["kind"])
+
+    def publish_event(self, payload: dict[str, str]) -> None:
         self.published.append(payload["kind"])
 
 
@@ -64,3 +70,23 @@ def test_runner_publishes_only_due_normal_messages() -> None:
     assert runner.publish_due(5.0) == 6.0
     assert publisher.published[-3:] == ["telemetry", "status", "health"]
     assert "event" not in publisher.published
+
+
+def test_runner_keeps_generating_but_does_not_publish_when_mqtt_is_disabled() -> None:
+    publisher = FakePublisher()
+    runner = load_runner_class()(
+        config=SimpleNamespace(
+            telemetry_interval=1.0,
+            status_interval=2.0,
+            health_interval=5.0,
+            mqtt_publish_enabled=False,
+        ),
+        factory=FakeFactory(),
+        publisher=publisher,
+    )
+
+    runner.publish_due(0.0)
+    runner.set_mqtt_publish_enabled(True)
+    runner.publish_due(1.0)
+
+    assert publisher.published == ["telemetry"]

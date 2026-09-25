@@ -39,7 +39,7 @@ async def start_subscriber() -> None:
                     logger.info("Received message: %s", topic)
 
                     # Chuyển cho handler xử lý
-                    handle_message(topic, payload)
+                    await handle_message(topic, payload)
 
         except aiomqtt.MqttError as ex:
             logger.error(

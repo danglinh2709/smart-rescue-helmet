@@ -33,6 +33,7 @@ class FakeMqttClient:
         self.published: list[tuple[str, str, int, bool]] = []
         self.loop_started = False
         self.disconnected = False
+        self.reconnect_calls = 0
 
     def connect(self, host: str, port: int, keepalive: int) -> int:
         assert host == "mosquitto"
@@ -50,6 +51,11 @@ class FakeMqttClient:
 
     def disconnect(self) -> int:
         self.disconnected = True
+        return 0
+
+    def reconnect(self) -> int:
+        self.reconnect_calls += 1
+        self.on_connect(self, None, {}, SuccessfulReasonCode(), None)
         return 0
 
     def loop_stop(self) -> None:
@@ -126,3 +132,20 @@ def test_publisher_never_sends_an_invalid_payload() -> None:
         publisher.publish_telemetry(telemetry)
 
     assert client.published == []
+
+
+def test_publisher_reconnects_before_resuming_publish() -> None:
+    publisher_module, validator_module, factory_module, scenario_module = load_components()
+    client = FakeMqttClient()
+    publisher = publisher_module.MqttPublisher(
+        host="mosquitto", port=1883,
+        validator=validator_module.ContractValidator(SCHEMA_DIR), client=client,
+    )
+    telemetry, _, _ = make_payloads(factory_module, scenario_module)
+    publisher.connect()
+    publisher._on_disconnect(client, None, None, RuntimeError("broker restart"), None)
+
+    publisher.publish_telemetry(telemetry)
+
+    assert client.reconnect_calls == 1
+    assert client.published[-1][0] == "helmet/FF01/telemetry"

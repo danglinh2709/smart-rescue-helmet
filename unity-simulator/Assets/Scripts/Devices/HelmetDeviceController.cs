@@ -13,6 +13,7 @@ namespace SmartRescueHelmet.Unity.Devices
         public string DeviceId = "FF03";
         private float _telemetryAt, _statusAt, _healthAt;
         public HazardVolume[] Hazards;
+        public VentilationZone[] VentilationZones;
         public DeviceSensorSnapshot Current { get; } = new DeviceSensorSnapshot { Temperature = 31f, Co = 5f, Az = 9.81f, Battery = 85f };
         public LocalSafetyResult Safety { get; private set; } = new LocalSafetyResult();
 
@@ -20,6 +21,7 @@ namespace SmartRescueHelmet.Unity.Devices
         {
             var temperature = 31f; var co = 5f;
             foreach (var hazard in Hazards) if (hazard != null && hazard.Contains(transform.position)) { temperature += hazard.TemperatureDelta; co += hazard.CoPpm; }
+            foreach (var ventilation in VentilationZones) if (ventilation != null && ventilation.Contains(transform.position)) co *= 1f - ventilation.CoReduction;
             Current.Temperature = temperature; Current.Co = co;
             Safety = LocalSafetyEvaluator.Evaluate(Current);
             if (Actuators != null) Actuators.Apply(Safety);

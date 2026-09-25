@@ -21,6 +21,13 @@ def _positive_float(environment: Mapping[str, str], name: str, default: str) -> 
     return value
 
 
+def _bool(environment: Mapping[str, str], name: str, default: str) -> bool:
+    value = environment.get(name, default).strip().lower()
+    if value not in {"true", "false"}:
+        raise ValueError(f"{name} must be true or false")
+    return value == "true"
+
+
 @dataclass(frozen=True)
 class SimulatorConfig:
     device_id: str
@@ -34,6 +41,7 @@ class SimulatorConfig:
 
     source: str
     schema_dir: Path
+    mqtt_publish_enabled: bool
 
     @classmethod
     def from_env(
@@ -101,4 +109,7 @@ class SimulatorConfig:
             source=source,
 
             schema_dir=DEFAULT_SCHEMA_DIR,
+            mqtt_publish_enabled=_bool(
+                values, "SIMULATOR_MQTT_PUBLISH_ENABLED", "true"
+            ),
         )

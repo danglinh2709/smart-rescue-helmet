@@ -42,6 +42,10 @@ class SimulatorRunner:
         }
 
         self._next_publish: dict[str, float] | None = None
+        self._mqtt_publish_enabled = getattr(config, "mqtt_publish_enabled", True)
+
+    def set_mqtt_publish_enabled(self, enabled: bool) -> None:
+        self._mqtt_publish_enabled = enabled
 
     def publish_due(self, now: float) -> float:
 
@@ -85,7 +89,7 @@ class SimulatorRunner:
             payload = create_payload()
 
             # Event chỉ publish khi có dữ liệu
-            if payload:
+            if payload and self._mqtt_publish_enabled:
                 publish_payload(payload)
 
             while self._next_publish[message_type] <= now:
