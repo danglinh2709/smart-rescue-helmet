@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "HYmuhkr3F6I=",
+  "success": true,
+  "projectFilePath": "D:\\Class\\smart-rescue-helmet\\unity-simulator\\tools\\MqttPackageFetch.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\5540\\.nuget\\packages\\mqttnet\\4.3.7.1207\\mqttnet.4.3.7.1207.nupkg.sha512"
+  ],
+  "logs": []
+}

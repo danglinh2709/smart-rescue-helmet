@@ -1,0 +1,219 @@
+{
+  "$defs": {
+    "ConnectionStatus": {
+      "enum": [
+        "CONNECTED",
+        "DISCONNECTED"
+      ],
+      "title": "ConnectionStatus",
+      "type": "string"
+    },
+    "DataSource": {
+      "enum": [
+        "SIMULATOR",
+        "HARDWARE"
+      ],
+      "title": "DataSource",
+      "type": "string"
+    },
+    "ImuReading": {
+      "additionalProperties": false,
+      "properties": {
+        "ax": {
+          "title": "Ax",
+          "type": "number"
+        },
+        "ay": {
+          "title": "Ay",
+          "type": "number"
+        },
+        "az": {
+          "title": "Az",
+          "type": "number"
+        },
+        "gx": {
+          "title": "Gx",
+          "type": "number"
+        },
+        "gy": {
+          "title": "Gy",
+          "type": "number"
+        },
+        "gz": {
+          "title": "Gz",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ax",
+        "ay",
+        "az",
+        "gx",
+        "gy",
+        "gz"
+      ],
+      "title": "ImuReading",
+      "type": "object"
+    },
+    "MovementState": {
+      "enum": [
+        "UNKNOWN",
+        "STATIONARY",
+        "WALKING",
+        "RUNNING",
+        "CRAWLING",
+        "UNUSUAL_MOVEMENT",
+        "FALL",
+        "IMMOBILE"
+      ],
+      "title": "MovementState",
+      "type": "string"
+    },
+    "RiskLevel": {
+      "enum": [
+        "NORMAL",
+        "WARNING",
+        "CRITICAL"
+      ],
+      "title": "RiskLevel",
+      "type": "string"
+    },
+    "SensorReadings": {
+      "additionalProperties": false,
+      "properties": {
+        "co": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Co"
+        },
+        "imu": {
+          "$ref": "#/$defs/ImuReading"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Temperature"
+        }
+      },
+      "required": [
+        "temperature",
+        "co",
+        "imu"
+      ],
+      "title": "SensorReadings",
+      "type": "object"
+    },
+    "TelemetryDevice": {
+      "additionalProperties": false,
+      "properties": {
+        "battery": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Battery",
+          "type": "number"
+        },
+        "mqtt": {
+          "$ref": "#/$defs/ConnectionStatus"
+        },
+        "wifi": {
+          "$ref": "#/$defs/ConnectionStatus"
+        }
+      },
+      "required": [
+        "battery",
+        "wifi",
+        "mqtt"
+      ],
+      "title": "TelemetryDevice",
+      "type": "object"
+    },
+    "TelemetryState": {
+      "additionalProperties": false,
+      "properties": {
+        "fall": {
+          "title": "Fall",
+          "type": "boolean"
+        },
+        "immobile": {
+          "title": "Immobile",
+          "type": "boolean"
+        },
+        "movement": {
+          "$ref": "#/$defs/MovementState"
+        },
+        "sos": {
+          "title": "Sos",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "movement",
+        "fall",
+        "immobile",
+        "sos"
+      ],
+      "title": "TelemetryState",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "device": {
+      "$ref": "#/$defs/TelemetryDevice"
+    },
+    "device_id": {
+      "maxLength": 32,
+      "minLength": 3,
+      "pattern": "^[A-Z][A-Z0-9_-]{2,31}$",
+      "title": "Device Id",
+      "type": "string"
+    },
+    "risk_level": {
+      "$ref": "#/$defs/RiskLevel"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sensors": {
+      "$ref": "#/$defs/SensorReadings"
+    },
+    "source": {
+      "$ref": "#/$defs/DataSource"
+    },
+    "state": {
+      "$ref": "#/$defs/TelemetryState"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "pattern": "(?:Z|[+-]\\d{2}:\\d{2})$",
+      "title": "Timestamp",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "device_id",
+    "timestamp",
+    "source",
+    "sensors",
+    "state",
+    "risk_level",
+    "device"
+  ],
+  "title": "TelemetryMessage",
+  "type": "object"
+}
