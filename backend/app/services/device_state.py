@@ -17,6 +17,7 @@ def get_or_create_device(device_id: str) -> dict[str, Any]:
             "last_seen": None,
             "device_status": "ONLINE",
             "actuators": None,
+            "active_safety_event": None,
         }
     return devices[device_id]
 
@@ -25,6 +26,36 @@ def update_device(device_id: str, field: str, value: dict) -> None:
     """Cập nhật trạng thái mới nhất của thiết bị."""
     device = get_or_create_device(device_id)
     device[field] = value
+
+
+def should_emit_safety_event(
+    device_id: str,
+    event_type: str | None,
+    severity: str | None,
+) -> bool:
+    """Return whether a safety condition is a new transition for a device."""
+    if event_type is None or severity is None:
+        return False
+    return get_or_create_device(device_id)["active_safety_event"] != {
+        "event_type": event_type,
+        "severity": severity,
+    }
+
+
+def record_safety_event(
+    device_id: str,
+    event_type: str | None,
+    severity: str | None,
+) -> None:
+    """Record the active safety condition after its persistence succeeds."""
+    device = get_or_create_device(device_id)
+    if event_type is None or severity is None:
+        device["active_safety_event"] = None
+        return
+    device["active_safety_event"] = {
+        "event_type": event_type,
+        "severity": severity,
+    }
 
 
 def touch_device(device_id: str, *, now: datetime | None = None) -> bool:

@@ -20,13 +20,13 @@ namespace SmartRescueHelmet.Unity.Scenarios
             switch (scenario)
             {
                 case ScenarioKind.Normal:
-                    Helmet.transform.position = NormalSpawn;
+                    TeleportHelmet(NormalSpawn);
                     if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(true);
                     break;
-                case ScenarioKind.TemperatureHigh: Helmet.transform.position = TemperatureTarget; break;
-                case ScenarioKind.CoHigh: Helmet.transform.position = CoTarget; break;
+                case ScenarioKind.TemperatureHigh: TeleportHelmet(TemperatureTarget); break;
+                case ScenarioKind.CoHigh: TeleportHelmet(CoTarget); break;
                 case ScenarioKind.Fall:
-                    Helmet.transform.position = FallTarget;
+                    TeleportHelmet(FallTarget);
                     Helmet.ReportFall();
                     break;
                 case ScenarioKind.Sos: Helmet.SetSos(true); break;
@@ -34,6 +34,16 @@ namespace SmartRescueHelmet.Unity.Scenarios
                 case ScenarioKind.ConnectionLoss: if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(false); break;
                 case ScenarioKind.Reconnect: if (Helmet.Publisher != null) Helmet.Publisher.SetPublishingEnabled(true); break;
             }
+            Helmet.RefreshEnvironmentSensors();
+        }
+
+        private void TeleportHelmet(Vector3 destination)
+        {
+            var characterController = Helmet.GetComponent<CharacterController>();
+            if (characterController != null) characterController.enabled = false;
+            Helmet.transform.position = destination;
+            Physics.SyncTransforms();
+            if (characterController != null) characterController.enabled = true;
         }
         private void Update()
         {

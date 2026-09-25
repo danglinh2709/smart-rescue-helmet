@@ -17,6 +17,7 @@ validation, safety events, persistence, WebSocket, and the React dashboard.
 - `W`, `A`, `S`, `D`: move
 - `Q`/`E` or arrow keys: turn
 - `C`: switch helmet visor and command-center cameras
+- `F`: assist the nearest waiting victim; escort an assisted victim into the green Safe Zone
 - `1`: normal/reset
 - `2`: fall
 - `3`: SOS
@@ -27,6 +28,13 @@ validation, safety events, persistence, WebSocket, and the React dashboard.
 - `8`: CO-high scenario (Confined Space)
 - `F1`: load Building Fire
 - `F2`: load Confined Space CO
+
+## Rescue mission
+
+Each environment spawns two virtual victims and one green Safe Zone. Walk close
+to a victim and press `F`; the victim follows behind FF03. Escort the victim
+onto the green Safe Zone to evacuate them. The visor HUD shows evacuation
+progress and reports mission completion after both victims are safe.
 
 ## Safety boundary
 

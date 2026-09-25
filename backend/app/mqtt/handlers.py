@@ -15,7 +15,12 @@ from app.schemas.event import EventMessage
 from app.services.device_service import ensure_device_exists
 from app.services.telemetry_service import save_telemetry
 from app.services.status_service import save_status
-from app.services.device_state import touch_device, update_device
+from app.services.device_state import (
+    record_safety_event,
+    should_emit_safety_event,
+    touch_device,
+    update_device,
+)
 from app.services.health_service import save_health
 from app.services.event_service import save_event
 
@@ -309,20 +314,33 @@ async def handle_message(topic: str, payload: str) -> None:
                 )
 
                 if event is not None:
-
-                    save_event(
-                        db,
-                        event.model_dump(),
-                    )
-                    event_saved = True
-
-                    logger.info(
-                        "Safety event created "
-                        "device=%s type=%s severity=%s",
+                    if should_emit_safety_event(
                         device_id,
-                        event.event_type,
-                        event.severity,
-                    )
+                        event.event_type.value,
+                        event.severity.value,
+                    ):
+                        save_event(
+                            db,
+                            event.model_dump(),
+                        )
+                        event_saved = True
+                        record_safety_event(
+                            device_id,
+                            event.event_type.value,
+                            event.severity.value,
+                        )
+
+                        logger.info(
+                            "Safety event created "
+                            "device=%s type=%s severity=%s",
+                            device_id,
+                            event.event_type,
+                            event.severity,
+                        )
+                    else:
+                        event = None
+                else:
+                    record_safety_event(device_id, None, None)
 
             except Exception:
 

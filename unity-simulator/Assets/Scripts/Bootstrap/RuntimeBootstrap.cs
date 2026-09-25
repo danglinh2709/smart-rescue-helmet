@@ -3,6 +3,7 @@ using SmartRescueHelmet.Unity.Environment;
 using SmartRescueHelmet.Unity.Networking;
 using SmartRescueHelmet.Unity.Player;
 using SmartRescueHelmet.Unity.Presentation;
+using SmartRescueHelmet.Unity.Rescue;
 using SmartRescueHelmet.Unity.Scenarios;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -11,15 +12,36 @@ namespace SmartRescueHelmet.Unity.Bootstrap
 {
     public sealed class RuntimeBootstrap : MonoBehaviour
     {
+        private bool _initialized;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RegisterSceneBootstrap()
+        {
+            SceneManager.sceneLoaded -= EnsureActiveSceneBootstrap;
+            SceneManager.sceneLoaded += EnsureActiveSceneBootstrap;
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateAtRuntime()
         {
-            if (FindAnyObjectByType<RuntimeBootstrap>() == null)
-                new GameObject("RuntimeBootstrap").AddComponent<RuntimeBootstrap>();
+            EnsureActiveSceneBootstrap(SceneManager.GetActiveScene(), LoadSceneMode.Single);
         }
-        private void Awake()
+
+        private static void EnsureActiveSceneBootstrap(Scene _, LoadSceneMode __)
         {
-            Debug.Log("[SRH] RuntimeBootstrap Awake");
+            var bootstrap = FindAnyObjectByType<RuntimeBootstrap>();
+            if (bootstrap == null)
+                bootstrap = new GameObject("RuntimeBootstrap").AddComponent<RuntimeBootstrap>();
+            bootstrap.InitializeForActiveScene();
+        }
+
+        private void Awake() => InitializeForActiveScene();
+
+        public void InitializeForActiveScene()
+        {
+            if (_initialized) return;
+            _initialized = true;
+            Debug.Log("[SRH] RuntimeBootstrap initialized scene=" + SceneManager.GetActiveScene().name);
             gameObject.AddComponent<RescueSceneNavigator>();
             var environment = EnvironmentSceneSelector.FromSceneName(SceneManager.GetActiveScene().name);
             if (environment == RescueEnvironment.BuildingFire)
@@ -57,9 +79,111 @@ namespace SmartRescueHelmet.Unity.Bootstrap
             fallZone.AddComponent<FallZone>().Device = device;
             scenarios.FallTarget = fallZone.transform.position + Vector3.up;
             helmet.AddComponent<CharacterController>();
-            helmet.AddComponent<RescuerController>();
+            var rescuer = helmet.AddComponent<RescuerController>();
+            var mission = CreateRescueMission(environment);
+            hud.Mission = mission;
+            hud.Rescuer = rescuer;
             var cameras = CreateCameras(helmet.transform);
             hud.Cameras = cameras;
+        }
+
+        private static RescueMission CreateRescueMission(RescueEnvironment environment)
+        {
+            var mission = new GameObject("RescueMission").AddComponent<RescueMission>();
+            var safeZonePosition = environment == RescueEnvironment.BuildingFire
+                ? new Vector3(-3.5f, .05f, -5.5f)
+                : new Vector3(0f, .05f, -4.25f);
+            var safeZone = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            safeZone.name = "SafeZone";
+            safeZone.transform.position = safeZonePosition;
+            safeZone.transform.localScale = new Vector3(3f, .1f, 3f);
+            safeZone.GetComponent<Renderer>().material.color = new Color(.08f, .75f, .3f);
+            safeZone.AddComponent<SafeZone>();
+            CreateSafeZoneBeacons(safeZonePosition);
+
+            var firstPosition = environment == RescueEnvironment.BuildingFire
+                ? new Vector3(-2.5f, 1f, 2.5f)
+                : new Vector3(-2f, 1f, 1f);
+            var secondPosition = environment == RescueEnvironment.BuildingFire
+                ? new Vector3(2.5f, 1f, -2.5f)
+                : new Vector3(2f, 1f, 3f);
+            mission.Register(CreateVictim("Victim Alpha", firstPosition, new Color(.9f, .35f, .2f)));
+            mission.Register(CreateVictim("Victim Bravo", secondPosition, new Color(.8f, .2f, .45f)));
+            return mission;
+        }
+
+        private static RescueVictim CreateVictim(string victimName, Vector3 position, Color uniformColor)
+        {
+            var victim = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            victim.name = victimName;
+            victim.transform.position = position;
+            victim.GetComponent<Renderer>().material.color = uniformColor;
+            var rigidbody = victim.AddComponent<Rigidbody>();
+            rigidbody.isKinematic = true;
+            var behavior = victim.AddComponent<RescueVictim>();
+
+            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = victimName + " Head";
+            head.transform.SetParent(victim.transform);
+            head.transform.localPosition = new Vector3(0f, 1f, 0f);
+            head.transform.localScale = Vector3.one * .38f;
+            head.GetComponent<Renderer>().material.color = new Color(.95f, .72f, .52f);
+            Destroy(head.GetComponent<Collider>());
+            CreateVictimLimb(victim.transform, victimName + " Left Arm", new Vector3(-.42f, .25f, 0f), new Vector3(.14f, .6f, .14f), uniformColor, 15f);
+            CreateVictimLimb(victim.transform, victimName + " Right Arm", new Vector3(.42f, .25f, 0f), new Vector3(.14f, .6f, .14f), uniformColor, -15f);
+            CreateVictimLimb(victim.transform, victimName + " Left Leg", new Vector3(-.18f, -.8f, 0f), new Vector3(.18f, .7f, .18f), new Color(.12f, .15f, .2f), 0f);
+            CreateVictimLimb(victim.transform, victimName + " Right Leg", new Vector3(.18f, -.8f, 0f), new Vector3(.18f, .7f, .18f), new Color(.12f, .15f, .2f), 0f);
+
+            var marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            marker.name = victimName + " Rescue Marker";
+            marker.transform.SetParent(victim.transform);
+            marker.transform.localPosition = new Vector3(0f, 2.25f, 0f);
+            marker.transform.localScale = new Vector3(.2f, .45f, .2f);
+            Destroy(marker.GetComponent<Collider>());
+            var markerLight = marker.AddComponent<Light>();
+            markerLight.type = LightType.Point;
+            markerLight.range = 3.5f;
+            markerLight.intensity = 2f;
+            var markerBehavior = marker.AddComponent<RescueVictimMarker>();
+            markerBehavior.Victim = behavior;
+            markerBehavior.MarkerRenderer = marker.GetComponent<Renderer>();
+            markerBehavior.MarkerLight = markerLight;
+            return behavior;
+        }
+
+        private static void CreateVictimLimb(Transform parent, string limbName, Vector3 localPosition, Vector3 localScale, Color color, float zRotation)
+        {
+            var limb = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            limb.name = limbName;
+            limb.transform.SetParent(parent);
+            limb.transform.localPosition = localPosition;
+            limb.transform.localScale = localScale;
+            limb.transform.localRotation = Quaternion.Euler(0f, 0f, zRotation);
+            limb.GetComponent<Renderer>().material.color = color;
+            Destroy(limb.GetComponent<Collider>());
+        }
+
+        private static void CreateSafeZoneBeacons(Vector3 center)
+        {
+            var offsets = new[]
+            {
+                new Vector3(-1.25f, 1.15f, -1.25f), new Vector3(1.25f, 1.15f, -1.25f),
+                new Vector3(-1.25f, 1.15f, 1.25f), new Vector3(1.25f, 1.15f, 1.25f),
+            };
+            foreach (var offset in offsets)
+            {
+                var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                beacon.name = "SafeZone Beacon";
+                beacon.transform.position = center + offset;
+                beacon.transform.localScale = new Vector3(.16f, 1.1f, .16f);
+                beacon.GetComponent<Renderer>().material.color = new Color(.05f, 1f, .3f);
+                Destroy(beacon.GetComponent<Collider>());
+                var light = beacon.AddComponent<Light>();
+                light.type = LightType.Point;
+                light.color = new Color(.05f, 1f, .3f);
+                light.range = 4f;
+                light.intensity = 2f;
+            }
         }
 
         private static void ConfigureEnvironmentHazards(
@@ -75,7 +199,7 @@ namespace SmartRescueHelmet.Unity.Bootstrap
                 heat.transform.localScale = new Vector3(3, 3, 3);
                 var heatVolume = heat.AddComponent<HazardVolume>();
                 heatVolume.TemperatureDelta = 35f;
-                scenarios.TemperatureTarget = heat.transform.position;
+                scenarios.TemperatureTarget = new Vector3(2.65f, 1f, 0f);
                 scenarios.CoTarget = scenarios.NormalSpawn;
                 device.Hazards = new[] { heatVolume };
                 device.VentilationZones = System.Array.Empty<VentilationZone>();
@@ -113,14 +237,11 @@ namespace SmartRescueHelmet.Unity.Bootstrap
             fire.transform.localScale = Vector3.one * 1.5f;
             fire.GetComponent<Renderer>().material.color = new Color(1f, .2f, 0f);
             var fireLight = fire.AddComponent<Light>(); fireLight.type = LightType.Point; fireLight.color = new Color(1f, .18f, 0f); fireLight.range = 8f; fireLight.intensity = 5f;
-            var particles = fire.AddComponent<ParticleSystem>();
-            var main = particles.main; main.startColor = new Color(1f, .18f, 0f); main.startSize = .7f; main.startLifetime = 1.2f; main.startSpeed = 2f;
-            var emission = particles.emission; emission.rateOverTime = 35;
-            var shape = particles.shape; shape.shapeType = ParticleSystemShapeType.Cone; shape.radius = .5f;
-            var smoke = new GameObject("SmokeVisual"); smoke.transform.position = new Vector3(4, 2f, 0);
-            var smokeParticles = smoke.AddComponent<ParticleSystem>();
-            var smokeMain = smokeParticles.main; smokeMain.startColor = new Color(.2f, .2f, .2f, .45f); smokeMain.startSize = 1.4f; smokeMain.startLifetime = 3f; smokeMain.startSpeed = .6f;
-            var smokeEmission = smokeParticles.emission; smokeEmission.rateOverTime = 18;
+            CreateFireFlame(new Vector3(4f, 1.55f, 0f), new Vector3(.65f, 1.6f, .65f), new Color(1f, .48f, .03f));
+            CreateFireFlame(new Vector3(3.55f, 1.25f, .15f), new Vector3(.45f, 1.1f, .45f), new Color(1f, .82f, .05f));
+            CreateFireFlame(new Vector3(4.45f, 1.2f, -.1f), new Vector3(.4f, 1f, .4f), new Color(1f, .35f, .02f));
+            CreateSmokePuff(new Vector3(3.8f, 2.6f, 0f), 1.0f);
+            CreateSmokePuff(new Vector3(4.35f, 3.2f, .15f), .8f);
             CreateWall(new Vector3(0, 1.5f, 8), new Vector3(12, 3, .3f));
             CreateWall(new Vector3(0, 1.5f, -8), new Vector3(12, 3, .3f));
             CreateWall(new Vector3(-6, 1.5f, 0), new Vector3(.3f, 3, 16));
@@ -167,12 +288,34 @@ namespace SmartRescueHelmet.Unity.Bootstrap
             obstacle.GetComponent<Renderer>().material.color = new Color(.35f, .2f, .12f);
         }
 
+        private static void CreateFireFlame(Vector3 position, Vector3 scale, Color color)
+        {
+            var flame = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            flame.name = "FireFlame";
+            flame.transform.position = position;
+            flame.transform.localScale = scale;
+            flame.GetComponent<Renderer>().material.color = color;
+            Destroy(flame.GetComponent<Collider>());
+        }
+
+        private static void CreateSmokePuff(Vector3 position, float scale)
+        {
+            var smoke = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            smoke.name = "SmokePuff";
+            smoke.transform.position = position;
+            smoke.transform.localScale = Vector3.one * scale;
+            smoke.GetComponent<Renderer>().material.color = new Color(.18f, .18f, .18f);
+            Destroy(smoke.GetComponent<Collider>());
+        }
+
         private static CameraModeController CreateCameras(Transform rescuer)
         {
             var first = new GameObject("FirstPersonCamera").AddComponent<Camera>();
             first.transform.SetParent(rescuer); first.transform.localPosition = new Vector3(0, .6f, 0);
             var command = new GameObject("CommandCenterCamera").AddComponent<Camera>();
             command.transform.position = new Vector3(10, 8, -10); command.transform.LookAt(rescuer);
+            var commandFollow = command.gameObject.AddComponent<CommandCenterCameraFollow>();
+            commandFollow.Target = rescuer;
             var modes = rescuer.gameObject.AddComponent<CameraModeController>();
             modes.FirstPersonCamera = first; modes.CommandCenterCamera = command;
             return modes;
