@@ -23,6 +23,7 @@ namespace SmartRescueHelmet.Unity.Presentation
             GUI.Label(new Rect(32, 100, 250, 24), "RISK: " + Device.Safety.RiskLevel);
             GUI.Label(new Rect(32, 124, 250, 24), "BATTERY: " + Device.Current.Battery.ToString("F0") + "%");
             GUI.Label(new Rect(32, 148, 250, 24), "MQTT: " + Device.Current.Mqtt);
+            GUI.Box(new Rect(18, 196, 300, 96), GUIContent.none);
             if (Scenarios != null) GUI.Label(new Rect(32, 196, 250, 24), "SCENARIO: " + Scenarios.ActiveScenario);
             if (Publisher != null) GUI.Label(new Rect(32, 220, 250, 24), "PUBLISH: " + (Publisher.PublishEnabled ? "ENABLED" : "DISABLED"));
             if (BackendRealtime != null)
