@@ -1,0 +1,46 @@
+menu "Smart Rescue Helmet"
+
+config HELMET_DEVICE_ID
+    string "Helmet device ID"
+    default "FF01"
+    help
+        Uppercase device identifier used in MQTT topics and payloads.
+
+config HELMET_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config HELMET_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config HELMET_MQTT_URI
+    string "MQTT broker URI"
+    default "mqtt://192.168.1.10:1883"
+
+config HELMET_MQTT_USERNAME
+    string "MQTT username"
+    default ""
+
+config HELMET_MQTT_PASSWORD
+    string "MQTT password"
+    default ""
+
+config HELMET_BATTERY_DIVIDER_MILLI_GAIN
+    int "Battery divider gain x1000"
+    range 1000 10000
+    default 2000
+    help
+        Pack voltage divided by ADC voltage, multiplied by 1000. Use 2000 for a 1:1 resistor divider.
+
+config HELMET_BATTERY_EMPTY_MV
+    int "Battery empty voltage (mV)"
+    range 2500 4200
+    default 3300
+
+config HELMET_BATTERY_FULL_MV
+    int "Battery full voltage (mV)"
+    range 3300 4500
+    default 4200
+
+endmenu

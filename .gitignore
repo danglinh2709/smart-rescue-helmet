@@ -33,6 +33,12 @@ mosquitto/log/*
 # Unity logs
 *.log
 
+# ESP-IDF generated build output and downloaded managed components
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+
 # IDE
 .vs/
 .idea/

@@ -306,7 +306,11 @@ Unity có EditMode tests trong `unity-simulator/Assets/Tests/EditMode/`.
 
 ## Giới hạn hiện tại
 
-- Chưa tích hợp ESP32-S3 và cảm biến vật lý.
+- `firmware/` hiện có nền tảng ESP-IDF 6.1 build được cho ESP32-S3: local safety
+  độc lập network, mapping LED/buzzer/vibration, MQTT JSON builder đúng shared
+  contract và time gate chặn publish trước khi đồng hồ được đồng bộ. Driver
+  DS18B20, MPU6050, MQ-7/ADS1115, Wi-Fi/SNTP/MQTT runtime và kiểm thử trên board
+  thật vẫn là bước hardware bring-up tiếp theo.
 - Chưa có đăng nhập hoặc phân quyền người dùng.
 - Chưa gửi cảnh báo qua SMS, email hoặc push notification.
 - Chưa có GPS, bản đồ, camera, AI hoặc điều hướng cứu hộ.
